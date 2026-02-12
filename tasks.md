@@ -2,276 +2,506 @@
 
 ## Overview
 
-This implementation plan breaks down the KrishiRakshak AI system into discrete, manageable tasks using Python and AWS serverless architecture. The plan follows an incremental approach, building core functionality first, then adding advanced features like prediction and multilingual support.
+This implementation plan breaks down the KrishiRakshak AI system into incremental, testable tasks. The approach follows a bottom-up strategy: core detection and data models first, then aggregation and intelligence layers, followed by dashboards and offline capabilities. Each major component includes property-based tests to validate correctness properties from the design document.
+
+The implementation uses Python 3.11 for Lambda functions, React for dashboards, and AWS CDK for infrastructure as code. Tasks are organized to enable early validation of core functionality while building toward the complete system.
 
 ## Tasks
 
-- [ ] 1. Set up project infrastructure and core framework
-  - Create Python project structure with proper packaging
-  - Set up AWS CDK infrastructure as code
-  - Configure development environment with testing frameworks
-  - Implement basic authentication and API Gateway setup
-  - _Requirements: 7.1, 7.5, 9.1_
+- [ ] 1. Set up project structure and AWS infrastructure foundation
+  - Create project directory structure: `/lambda`, `/dashboards`, `/infrastructure`, `/tests`
+  - Initialize AWS CDK project for infrastructure as code
+  - Configure DynamoDB tables (Detection, Aggregation, RiskScore, Forecast, Alert) with appropriate keys and GSIs
+  - Set up S3 buckets (krishirakshak-images, krishirakshak-static) with lifecycle policies
+  - Configure API Gateway REST API with throttling limits
+  - Set up EventBridge event bus and SNS topics
+  - Create CloudWatch log groups and alarms
+  - _Requirements: 11.1, 11.3, 11.4, 11.5_
 
-- [ ] 2. Implement image processing and storage system
-  - [ ] 2.1 Create image upload and validation service
-    - Implement S3 upload with presigned URLs
-    - Add image format, size, and quality validation using PIL
-    - Create image metadata extraction and storage
-    - _Requirements: 1.2, 8.5_
+- [ ] 2. Implement core data models and validation
+  - [ ] 2.1 Create Python data models for Detection_Record, Aggregation_Record, Risk_Score_Record, Forecast_Record, Alert_Record
+    - Define Pydantic models with field validation
+    - Implement serialization/deserialization methods
+    - Add coordinate validation for Andhra Pradesh boundaries
+    - _Requirements: 2.2, 2.3, 2.6_
+  
+  - [ ] 2.2 Write property test for detection record completeness
+    - **Property 5: Detection record completeness**
+    - **Validates: Requirements 2.2**
+  
+  - [ ] 2.3 Write property test for timestamp duality
+    - **Property 6: Timestamp duality**
+    - **Validates: Requirements 2.3**
+  
+  - [ ] 2.4 Write property test for geographic boundary validation
+    - **Property 8: Geographic boundary validation**
+    - **Validates: Requirements 2.6**
+  
+  - [ ] 2.5 Implement farmer ID anonymization using SHA-256 hashing
+    - Create hash_farmer_id() function with salt
+    - _Requirements: 2.5, 13.2_
+  
+  - [ ] 2.6 Write property test for farmer ID anonymization
+    - **Property 7: Farmer ID anonymization**
+    - **Validates: Requirements 2.5, 13.2**
 
-  - [ ]* 2.2 Write property test for image validation
-    - **Property 2: Image Quality Validation**
-    - **Validates: Requirements 1.2**
+- [ ] 3. Implement Image_Processor Lambda function
+  - [ ] 3.1 Create ProcessImage Lambda handler
+    - Accept image upload via API Gateway
+    - Validate image format (JPEG, PNG) and size
+    - Compress images to <500KB using Pillow
+    - Store original and compressed images in S3
+    - Return S3 URLs and trigger DetectDisease via SNS
+    - _Requirements: 1.1, 8.4_
+  
+  - [ ] 3.2 Write property test for image compression size limit
+    - **Property 26: Image compression size limit**
+    - **Validates: Requirements 8.4**
+  
+  - [ ] 3.3 Write property test for invalid image rejection
+    - **Property 3: Invalid image rejection**
+    - **Validates: Requirements 1.4**
+  
+  - [ ] 3.4 Write unit tests for image processing edge cases
+    - Test oversized images, corrupted files, unsupported formats
+    - _Requirements: 1.4_
 
-  - [ ] 2.3 Implement image preprocessing pipeline
-    - Add image resizing and optimization for mobile networks
-    - Implement image enhancement for better AI analysis
-    - Create asynchronous processing with SQS triggers
-    - _Requirements: 1.1, 8.5_
-
-  - [ ]* 2.4 Write unit tests for image processing
-    - Test various image formats and edge cases
-    - Test preprocessing pipeline with sample images
-    - _Requirements: 1.1, 1.2_
-
-- [ ] 3. Develop AI disease detection system
-  - [ ] 3.1 Implement CNN model loading and inference
-    - Set up MobileNetV2 model for rice disease detection
-    - Create model inference pipeline with confidence scoring
-    - Implement support for blast, brown spot, and bacterial blight detection
-    - _Requirements: 1.1, 1.3, 1.5_
-
-  - [ ]* 3.2 Write property test for disease detection completeness
-    - **Property 3: Disease Detection Response Completeness**
-    - **Validates: Requirements 1.3, 1.4**
-
-  - [ ]* 3.3 Write property test for comprehensive disease recognition
-    - **Property 4: Comprehensive Disease Recognition**
+- [ ] 4. Implement Disease_Detection_System Lambda function
+  - [ ] 4.1 Create DetectDisease Lambda handler with MobileNetV3 model
+    - Load pre-trained model from S3 on cold start
+    - Perform inference on processed images
+    - Return disease classification with confidence scores
+    - Support multi-disease detection and ranking
+    - _Requirements: 1.1, 1.2, 1.3, 1.5_
+  
+  - [ ] 4.2 Write property test for detection response completeness
+    - **Property 1: Detection response completeness**
+    - **Validates: Requirements 1.3**
+  
+  - [ ] 4.3 Write property test for multi-disease ranking
+    - **Property 2: Multi-disease ranking**
     - **Validates: Requirements 1.5**
+  
+  - [ ] 4.4 Write property test for detection response time
+    - **Property 4: Detection response time**
+    - **Validates: Requirements 1.1**
+  
+  - [ ] 4.5 Write unit tests for ML model edge cases
+    - Test low confidence scenarios, empty images, multiple diseases
+    - _Requirements: 1.4, 1.5_
 
-  - [ ] 3.4 Implement disease ranking and recommendation system
-    - Add severity-based disease ranking logic
-    - Create treatment recommendation database and lookup
-    - Implement locally relevant solution mapping for Andhra Pradesh
-    - _Requirements: 1.4, 4.5_
-
-  - [ ]* 3.5 Write property test for local relevance
-    - **Property 10: Local Relevance of Recommendations**
-    - **Validates: Requirements 4.5**
-
-- [ ] 4. Checkpoint - Core detection functionality
+- [ ] 5. Checkpoint - Ensure image processing and detection tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Build data aggregation and analytics system
-  - [ ] 5.1 Create district-level data aggregation service
-    - Implement DynamoDB data models for farmers, images, and detections
-    - Add location-based data aggregation with privacy anonymization
-    - Create time-series data collection for trend analysis
-    - _Requirements: 2.1, 2.2, 2.5_
+- [ ] 6. Implement Geo_Logger Lambda function
+  - [ ] 6.1 Create LogDetection Lambda handler
+    - Receive detection results from DetectDisease
+    - Validate and store GPS coordinates
+    - Reverse geocode to district/mandal/village using cached mapping
+    - Create Detection_Record with anonymized farmer_id
+    - Store in DynamoDB Detection table
+    - Publish detection event to EventBridge
+    - _Requirements: 2.1, 2.2, 2.3, 2.5, 2.6_
+  
+  - [ ] 6.2 Write property test for detection record storage
+    - **Property 5: Detection record completeness**
+    - **Validates: Requirements 2.2**
+  
+  - [ ] 6.3 Write unit tests for geocoding failures and GPS unavailability
+    - Test fallback to manual village selection
+    - _Requirements: 2.4_
 
-  - [ ]* 5.2 Write property test for data aggregation consistency
-    - **Property 5: Data Aggregation Consistency**
-    - **Validates: Requirements 2.1, 2.2, 9.3**
-
-  - [ ] 5.3 Implement automated reporting system
-    - Create scheduled Lambda for 6-hour report generation
-    - Add disease cluster detection algorithms
-    - Implement high-risk area flagging logic
-    - _Requirements: 2.3, 2.4_
-
-  - [ ]* 5.4 Write property test for automated reporting
-    - **Property 6: Automated Reporting and Alerting**
-    - **Validates: Requirements 2.3, 2.4, 6.2**
-
-- [ ] 6. Develop prediction engine and risk assessment
-  - [ ] 6.1 Implement time-series forecasting models
-    - Set up LSTM networks using TensorFlow/PyTorch
-    - Create weather data integration with external APIs
-    - Implement 7-14 day disease outbreak risk forecasting
-    - _Requirements: 3.1, 3.2, 3.4_
-
-  - [ ]* 6.2 Write property test for prediction accuracy
-    - **Property 7: Prediction Engine Accuracy and Timeliness**
-    - **Validates: Requirements 3.1, 3.2, 3.4, 3.5**
-
-  - [ ] 6.3 Create alert triggering system
-    - Implement risk threshold monitoring
-    - Add community-wide alert generation logic
-    - Create officer notification system for critical outbreaks
-    - _Requirements: 3.3, 6.2_
-
-  - [ ]* 6.4 Write property test for alert triggering
-    - **Property 8: Alert Triggering Consistency**
+- [ ] 7. Implement Community_Radar aggregation system
+  - [ ] 7.1 Create AggregateDetections Lambda handler
+    - Subscribe to detection events via EventBridge
+    - Aggregate detections by district and mandal in 15-minute windows
+    - Calculate detection density per 5km radius
+    - Implement DBSCAN clustering algorithm for outbreak detection
+    - Identify clusters exceeding 3 standard deviations above baseline
+    - Store aggregation results in DynamoDB Aggregation table
+    - _Requirements: 3.1, 3.2, 3.3, 3.5_
+  
+  - [ ] 7.2 Write property test for aggregation accuracy
+    - **Property 9: Aggregation accuracy**
+    - **Validates: Requirements 3.1**
+  
+  - [ ] 7.3 Write property test for outbreak cluster identification
+    - **Property 10: Outbreak cluster identification**
+    - **Validates: Requirements 3.2**
+  
+  - [ ] 7.4 Write property test for cluster metadata completeness
+    - **Property 11: Cluster metadata completeness**
     - **Validates: Requirements 3.3**
+  
+  - [ ] 7.5 Write property test for aggregation dimensionality
+    - **Property 12: Aggregation dimensionality**
+    - **Validates: Requirements 3.5**
 
-- [ ] 7. Implement multilingual communication system
-  - [ ] 7.1 Create Telugu language support system
-    - Implement text translation and localization
-    - Add Telugu voice synthesis using AWS Polly
-    - Create simple, farmer-friendly message templates
-    - _Requirements: 4.1, 4.2, 4.3_
+- [ ] 8. Implement Prediction_Engine Lambda function
+  - [ ] 8.1 Create GenerateForecast Lambda handler
+    - Integrate with OpenWeatherMap API for 7-day forecasts
+    - Retrieve temperature, humidity, rainfall by district
+    - Apply disease-climate correlation models
+    - Calculate outbreak probability for each disease type
+    - Generate district-level and mandal-level forecasts
+    - Store predictions in DynamoDB Forecast table
+    - Schedule execution twice daily (6 AM, 6 PM IST) via EventBridge
+    - _Requirements: 4.1, 4.2, 4.5, 4.6_
+  
+  - [ ] 8.2 Write property test for forecast climate data completeness
+    - **Property 13: Forecast climate data completeness**
+    - **Validates: Requirements 4.1**
+  
+  - [ ] 8.3 Write property test for favorable conditions probability
+    - **Property 14: Favorable conditions probability**
+    - **Validates: Requirements 4.2**
+  
+  - [ ] 8.4 Write property test for low confidence uncertainty indication
+    - **Property 15: Low confidence uncertainty indication**
+    - **Validates: Requirements 4.5**
+  
+  - [ ] 8.5 Write property test for forecast geographic granularity
+    - **Property 16: Forecast geographic granularity**
+    - **Validates: Requirements 4.6**
 
-  - [ ]* 7.2 Write property test for Telugu language consistency
-    - **Property 9: Telugu Language Consistency**
-    - **Validates: Requirements 4.1, 4.2, 4.3, 5.3**
-
-  - [ ] 7.3 Implement multi-channel notification system
-    - Add SMS gateway integration for text alerts
-    - Create voice call system for critical notifications
-    - Implement push notifications for mobile app
-    - _Requirements: 4.1, 4.2, 10.4_
-
-  - [ ]* 7.4 Write unit tests for notification delivery
-    - Test SMS, voice, and push notification channels
-    - Test delivery tracking and response monitoring
-    - _Requirements: 4.1, 4.2, 6.5_
-
-- [ ] 8. Checkpoint - Communication system validation
+- [ ] 9. Checkpoint - Ensure aggregation and prediction tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Build farmer dashboard and mobile interface
-  - [ ] 9.1 Create farmer dashboard backend APIs
-    - Implement farmer profile and authentication system
-    - Add disease detection history and risk level APIs
-    - Create personalized recommendation endpoints
-    - _Requirements: 5.1, 9.2, 9.4_
+- [ ] 10. Implement Risk_Scoring_Engine Lambda function
+  - [ ] 10.1 Create CalculateRiskScore Lambda handler
+    - Query Detection, Aggregation, and Forecast tables
+    - Calculate weighted District Risk Score: 40% density + 30% clusters + 20% forecast + 10% trend
+    - Normalize scores to 0-100 scale across districts
+    - Generate disease-specific risk scores
+    - Detect rapid escalation (>15 point change in 24h)
+    - Store risk scores in DynamoDB RiskScore table
+    - Schedule execution every 30 minutes via EventBridge
+    - _Requirements: 5.1, 5.2, 5.4, 5.5, 5.6_
+  
+  - [ ] 10.2 Write property test for risk score bounds
+    - **Property 17: Risk score bounds**
+    - **Validates: Requirements 5.1**
+  
+  - [ ] 10.3 Write property test for risk score weighting
+    - **Property 18: Risk score weighting**
+    - **Validates: Requirements 5.2**
+  
+  - [ ] 10.4 Write property test for disease-specific scoring
+    - **Property 19: Disease-specific scoring**
+    - **Validates: Requirements 5.4**
+  
+  - [ ] 10.5 Write property test for rapid escalation detection
+    - **Property 20: Rapid escalation detection**
+    - **Validates: Requirements 5.5**
+  
+  - [ ] 10.6 Write property test for score normalization
+    - **Property 21: Score normalization**
+    - **Validates: Requirements 5.6**
 
-  - [ ]* 9.2 Write property test for dashboard content appropriateness
-    - **Property 12: Dashboard Content Appropriateness**
-    - **Validates: Requirements 5.1, 5.2, 5.4, 6.1**
-
-  - [ ] 9.3 Implement offline functionality
-    - Add local caching for essential information
-    - Create offline image capture and queuing system
-    - Implement automatic sync when connectivity restored
-    - _Requirements: 4.4, 5.5, 8.1, 8.2, 8.3, 8.4_
-
-  - [ ]* 9.4 Write property test for offline functionality
-    - **Property 11: Offline Functionality Completeness**
-    - **Validates: Requirements 4.4, 5.5, 8.1, 8.2, 8.3, 8.4**
-
-  - [ ] 9.5 Optimize for low-end devices and slow networks
-    - Implement progressive loading and data compression
-    - Add adaptive quality based on network conditions
-    - Create lightweight UI components for basic smartphones
-    - _Requirements: 5.4, 8.5_
-
-  - [ ]* 9.6 Write property test for network optimization
-    - **Property 18: Network Optimization**
-    - **Validates: Requirements 8.5**
-
-- [ ] 10. Develop agricultural officer management system
-  - [ ] 10.1 Create officer dashboard backend
-    - Implement officer authentication and role management
-    - Add real-time disease statistics APIs
-    - Create district-level analytics and reporting endpoints
-    - _Requirements: 6.1, 6.4_
-
-  - [ ] 10.2 Implement broadcast and intervention tracking
-    - Add advisory broadcast system to farmer groups
-    - Create intervention effectiveness tracking
-    - Implement farmer response rate monitoring
-    - _Requirements: 6.3, 6.5_
-
-  - [ ]* 10.3 Write property test for broadcast functionality
-    - **Property 13: Broadcast and Tracking Functionality**
-    - **Validates: Requirements 6.3, 6.5**
-
-  - [ ]* 10.4 Write property test for government reporting compliance
-    - **Property 14: Government Reporting Compliance**
+- [ ] 11. Implement Alert_System Lambda function
+  - [ ] 11.1 Create DistributeAlerts Lambda handler
+    - Monitor risk score changes and outbreak clusters
+    - Classify alerts into Low (0-33), Moderate (34-66), High (67-100) tiers
+    - Query farmer locations from Detection table
+    - Generate alert messages in Telugu and English
+    - Include disease name, risk level, affected area, recommended actions, office contact
+    - Distribute via SNS to SMS, push notifications, and voice (High tier only)
+    - Implement rate limiting: Low (1/day), Moderate (3/day), High (unlimited)
+    - Batch multiple diseases into single notifications
+    - Store alert history in DynamoDB Alert table
+    - _Requirements: 6.1, 6.3, 6.4, 6.6_
+  
+  - [ ] 11.2 Write property test for alert tier classification
+    - **Property 22: Alert tier classification**
+    - **Validates: Requirements 6.1**
+  
+  - [ ] 11.3 Write property test for alert message completeness
+    - **Property 23: Alert message completeness**
+    - **Validates: Requirements 6.3**
+  
+  - [ ] 11.4 Write property test for high tier channel inclusion
+    - **Property 24: High tier channel inclusion**
     - **Validates: Requirements 6.4**
+  
+  - [ ] 11.5 Write property test for alert rate limiting
+    - **Property 25: Alert rate limiting**
+    - **Validates: Requirements 6.6**
 
-- [ ] 11. Implement scalability and performance optimization
-  - [ ] 11.1 Set up auto-scaling and load management
-    - Configure Lambda auto-scaling for concurrent users
-    - Implement SQS queues for processing load distribution
-    - Add CloudWatch monitoring and alerting
-    - _Requirements: 7.1, 7.2_
+- [ ] 12. Implement treatment advisory system
+  - [ ] 12.1 Create treatment recommendation data structure and API endpoint
+    - Define treatment database with pesticide names, rates, timing, costs
+    - Include organic and chemical options
+    - Implement prioritization logic based on severity, crop stage, availability
+    - Add safety precautions and protective equipment info in Telugu
+    - Include video demonstration links (<5MB)
+    - Create GET /api/v1/treatment/{disease_id} endpoint
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
+  
+  - [ ] 12.2 Write property test for treatment recommendation completeness
+    - **Property 37: Treatment recommendation completeness**
+    - **Validates: Requirements 14.1**
+  
+  - [ ] 12.3 Write property test for treatment option diversity
+    - **Property 38: Treatment option diversity**
+    - **Validates: Requirements 14.2**
+  
+  - [ ] 12.4 Write property test for treatment prioritization
+    - **Property 39: Treatment prioritization**
+    - **Validates: Requirements 14.3**
+  
+  - [ ] 12.5 Write property test for adjacent area preventive measures
+    - **Property 40: Adjacent area preventive measures**
+    - **Validates: Requirements 14.4**
+  
+  - [ ] 12.6 Write property test for safety information inclusion
+    - **Property 41: Safety information inclusion**
+    - **Validates: Requirements 14.5**
+  
+  - [ ] 12.7 Write property test for video link validity
+    - **Property 42: Video link validity**
+    - **Validates: Requirements 14.6**
 
-  - [ ]* 11.2 Write property test for scalability
-    - **Property 15: Scalability and Auto-scaling**
-    - **Validates: Requirements 7.1, 7.2**
-
-  - [ ] 11.3 Implement fault tolerance and error handling
-    - Add circuit breaker patterns for external services
-    - Create graceful degradation for component failures
-    - Implement comprehensive error logging and recovery
-    - _Requirements: 7.4_
-
-  - [ ]* 11.4 Write property test for fault tolerance
-    - **Property 16: Fault Tolerance and Graceful Degradation**
-    - **Validates: Requirements 7.4**
-
-- [ ] 12. Implement security and privacy protection
-  - [ ] 12.1 Set up data encryption and security
-    - Implement end-to-end encryption for all data transmission
-    - Add data encryption at rest in S3 and DynamoDB
-    - Create secure API authentication with JWT tokens
-    - _Requirements: 9.1, 9.5_
-
-  - [ ]* 12.2 Write property test for data protection compliance
-    - **Property 17: Data Protection and Privacy Compliance**
-    - **Validates: Requirements 9.1, 9.2, 9.4, 9.5**
-
-  - [ ] 12.3 Implement privacy controls and data management
-    - Add farmer data deletion functionality
-    - Create data anonymization for aggregated analytics
-    - Implement consent management system
-    - _Requirements: 9.2, 9.3, 9.4_
-
-- [ ] 13. Optimize for cost-effectiveness
-  - [ ] 13.1 Implement cost optimization strategies
-    - Set up intelligent caching with Redis/ElastiCache
-    - Add AI model efficiency optimizations
-    - Create cost-effective notification channel selection
-    - _Requirements: 10.1, 10.2, 10.3, 10.4_
-
-  - [ ]* 13.2 Write property test for cost-effective operations
-    - **Property 19: Cost-Effective Operations**
-    - **Validates: Requirements 10.1, 10.2, 10.3, 10.4**
-
-  - [ ] 13.3 Implement usage analytics and monitoring
-    - Add comprehensive usage tracking and analytics
-    - Create cost monitoring and optimization dashboards
-    - Implement resource allocation optimization
-    - _Requirements: 10.5_
-
-  - [ ]* 13.4 Write property test for analytics capability
-    - **Property 20: Analytics and Optimization**
-    - **Validates: Requirements 10.5**
-
-- [ ] 14. System integration and end-to-end testing
-  - [ ] 14.1 Integrate all system components
-    - Wire together all services and APIs
-    - Implement cross-service communication
-    - Add comprehensive system monitoring
-    - _Requirements: All requirements integration_
-
-  - [ ]* 14.2 Write integration tests for complete workflows
-    - Test farmer journey from image upload to treatment recommendation
-    - Test officer workflow from outbreak detection to community alert
-    - Test system behavior during peak usage scenarios
-    - _Requirements: All requirements validation_
-
-  - [ ] 14.3 Performance testing and optimization
-    - Conduct load testing with 10,000+ concurrent users
-    - Test system response times under various conditions
-    - Validate cost optimization under different usage patterns
-    - _Requirements: 7.1, 7.3, 10.1_
-
-  - [ ]* 14.4 Write property test for system response time consistency
-    - **Property 1: System Response Time Consistency**
-    - **Validates: Requirements 1.1, 7.3**
-
-- [ ] 15. Final checkpoint and deployment preparation
+- [ ] 13. Checkpoint - Ensure risk scoring, alerts, and treatment tests pass
   - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 14. Implement Farmer_Dashboard Progressive Web App
+  - [ ] 14.1 Create React PWA with service workers for offline-first operation
+    - Initialize React app with Create React App PWA template
+    - Configure service workers for offline caching
+    - Implement IndexedDB for local storage (Offline_Queue)
+    - Set up Telugu language support with i18n
+    - Integrate Web Speech API for text-to-speech
+    - _Requirements: 8.1, 8.2, 8.6, 10.1, 10.3_
+  
+  - [ ] 14.2 Implement camera integration and image capture
+    - Use HTML5 Camera API for image capture
+    - Implement client-side image compression to <500KB
+    - Add image preview and recapture functionality
+    - _Requirements: 8.4_
+  
+  - [ ] 14.3 Create home screen with risk score, detection history, and alerts
+    - Display current district risk score with color coding
+    - Show personal detection history (last 10 detections)
+    - List active alerts with tier indicators
+    - _Requirements: 8.5_
+  
+  - [ ] 14.4 Implement offline queue and sync mechanism
+    - Store detections in IndexedDB when offline
+    - Display offline mode indicator
+    - Implement automatic sync on connectivity restoration
+    - Sync detections in chronological order
+    - Implement conflict resolution for old timestamps
+    - Enforce 50-item queue limit
+    - _Requirements: 10.1, 10.2, 10.4, 10.5, 10.6_
+  
+  - [ ] 14.5 Write property test for offline queue storage
+    - **Property 29: Offline queue storage**
+    - **Validates: Requirements 10.1**
+  
+  - [ ] 14.6 Write property test for sync chronological ordering
+    - **Property 30: Sync chronological ordering**
+    - **Validates: Requirements 10.2**
+  
+  - [ ] 14.7 Write property test for offline data accessibility
+    - **Property 31: Offline data accessibility**
+    - **Validates: Requirements 10.4**
+  
+  - [ ] 14.8 Write property test for offline conflict resolution
+    - **Property 32: Offline conflict resolution**
+    - **Validates: Requirements 10.5**
+  
+  - [ ] 14.9 Write property test for queue size limit enforcement
+    - **Property 33: Queue size limit enforcement**
+    - **Validates: Requirements 10.6**
+  
+  - [ ] 14.10 Implement API integration with backend
+    - Create API client for detection submission, risk score queries, alerts
+    - Implement retry logic with exponential backoff
+    - Handle authentication with API keys
+    - _Requirements: 1.1, 6.5_
+
+- [ ] 15. Implement Officer_Dashboard web application
+  - [ ] 15.1 Create React web app with Mapbox GL for heatmap visualization
+    - Initialize React app with routing
+    - Integrate Mapbox GL JS for interactive maps
+    - Display detection heatmaps color-coded by risk intensity
+    - Show mandal and district boundaries
+    - _Requirements: 9.1_
+  
+  - [ ] 15.2 Implement trend analysis and analytics charts
+    - Use Recharts library for line and bar charts
+    - Display detection counts, risk scores, forecast accuracy over time
+    - Show comparative analysis vs historical averages and neighboring districts
+    - _Requirements: 9.2, 9.5_
+  
+  - [ ] 15.3 Create filtering and drill-down functionality
+    - Implement filters for disease type, geographic unit, date range, risk tier
+    - Enable drill-down from district to mandal to village level
+    - _Requirements: 9.3_
+  
+  - [ ] 15.4 Write property test for dashboard filtering correctness
+    - **Property 27: Dashboard filtering correctness**
+    - **Validates: Requirements 9.3**
+  
+  - [ ] 15.5 Implement report generation and export
+    - Create report templates with jsPDF
+    - Generate CSV exports with customizable parameters
+    - Include charts, tables, and summary statistics
+    - _Requirements: 9.4_
+  
+  - [ ] 15.6 Write property test for report export data integrity
+    - **Property 28: Report export data integrity**
+    - **Validates: Requirements 9.4**
+  
+  - [ ] 15.7 Implement alert management interface
+    - Display alert history with filtering
+    - Enable manual alert triggering
+    - Show delivery status by channel
+    - _Requirements: 9.6_
+  
+  - [ ] 15.8 Set up Cognito authentication and role-based access control
+    - Configure Cognito user pools for officer accounts
+    - Implement login/logout flows
+    - Enforce district-based access restrictions
+    - _Requirements: 13.5_
+  
+  - [ ] 15.9 Write property test for role-based access enforcement
+    - **Property 35: Role-based access enforcement**
+    - **Validates: Requirements 13.5**
+  
+  - [ ] 15.10 Create GraphQL API integration with AppSync
+    - Define GraphQL schema for queries and mutations
+    - Implement resolvers for heatmap, trends, clusters, reports
+    - Configure AppSync with DynamoDB data sources
+    - _Requirements: 9.1, 9.2, 9.3, 9.4_
+
+- [ ] 16. Implement security and privacy features
+  - [ ] 16.1 Configure encryption for data at rest and in transit
+    - Enable AES-256 encryption for S3 buckets
+    - Enable encryption for DynamoDB tables
+    - Configure TLS 1.3 for API Gateway
+    - _Requirements: 13.3_
+  
+  - [ ] 16.2 Implement data deletion functionality
+    - Create DELETE endpoint for farmer data deletion requests
+    - Remove all detection records for farmer_id
+    - Preserve anonymized aggregated statistics
+    - _Requirements: 13.4_
+  
+  - [ ] 16.3 Write property test for data deletion with aggregate preservation
+    - **Property 34: Data deletion with aggregate preservation**
+    - **Validates: Requirements 13.4**
+  
+  - [ ] 16.4 Implement audit logging system
+    - Create audit log Lambda function
+    - Log all data access and modification operations
+    - Store logs in CloudWatch with 1-year retention
+    - Include timestamp, user ID, operation type, affected resources
+    - _Requirements: 13.6_
+  
+  - [ ] 16.5 Write property test for audit log creation
+    - **Property 36: Audit log creation**
+    - **Validates: Requirements 13.6**
+
+- [ ] 17. Implement error handling and monitoring
+  - [ ] 17.1 Add comprehensive error handling to all Lambda functions
+    - Implement try-catch blocks with specific error types
+    - Return appropriate HTTP status codes and error messages
+    - Configure dead letter queues for failed events
+    - _Requirements: All error handling from design_
+  
+  - [ ] 17.2 Set up CloudWatch monitoring and alarms
+    - Create dashboards for Lambda metrics, API Gateway metrics, DynamoDB metrics
+    - Configure alarms for error rates, latency, throttling, cost overruns
+    - Set up SNS notifications for critical alarms
+    - _Requirements: 12.6_
+  
+  - [ ] 17.3 Implement X-Ray tracing for distributed tracing
+    - Enable X-Ray for all Lambda functions
+    - Add custom segments for external API calls
+    - Create service map for visualization
+    - _Requirements: Testing Strategy_
+  
+  - [ ] 17.4 Write unit tests for error handling scenarios
+    - Test all error conditions from design document
+    - Verify error messages, status codes, recovery mechanisms
+    - _Requirements: All error handling requirements_
+
+- [ ] 18. Checkpoint - Ensure dashboards, security, and monitoring tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 19. Deploy infrastructure and configure CloudFront CDN
+  - [ ] 19.1 Deploy AWS infrastructure using CDK
+    - Run `cdk deploy` to provision all resources
+    - Verify DynamoDB tables, Lambda functions, API Gateway, S3 buckets
+    - Configure environment variables for Lambda functions
+    - _Requirements: 11.1, 11.3, 11.4, 11.5_
+  
+  - [ ] 19.2 Configure CloudFront distribution
+    - Create CloudFront distribution for Farmer_Dashboard PWA
+    - Configure origin as S3 static website
+    - Set up edge locations in Mumbai and Chennai
+    - Enable caching for static assets and API responses
+    - _Requirements: 11.6_
+  
+  - [ ] 19.3 Upload ML model to S3 and configure Lambda layers
+    - Upload MobileNetV3 model file to S3
+    - Create Lambda layer with ML dependencies (TensorFlow, NumPy)
+    - Attach layer to DetectDisease Lambda function
+    - _Requirements: 1.2_
+
+- [ ] 20. Integration testing and end-to-end validation
+  - [ ] 20.1 Write integration tests for complete detection flow
+    - Test: Image upload → ML inference → Geo logging → Aggregation
+    - Verify data consistency across all tables
+    - _Requirements: 1.1, 2.1, 3.1_
+  
+  - [ ] 20.2 Write integration tests for alert distribution flow
+    - Test: Risk score calculation → Alert classification → Multi-channel delivery
+    - Verify SMS, push, and voice delivery (mocked)
+    - _Requirements: 5.1, 6.1, 6.2_
+  
+  - [ ] 20.3 Write integration tests for offline sync flow
+    - Test: Offline queue → Connectivity restoration → Chronological sync
+    - Verify conflict resolution and queue management
+    - _Requirements: 10.1, 10.2, 10.5_
+  
+  - [ ] 20.4 Write integration tests for officer dashboard flow
+    - Test: Data query → Filtering → Report generation
+    - Verify GraphQL queries and export functionality
+    - _Requirements: 9.3, 9.4_
+
+- [ ] 21. Performance testing and optimization
+  - [ ] 21.1 Conduct load testing with Locust
+    - Simulate 10,000 concurrent users
+    - Test image upload, risk score queries, alert distribution
+    - Verify <5s response time at p95, <1% error rate
+    - _Requirements: 11.2_
+  
+  - [ ] 21.2 Optimize Lambda function performance
+    - Analyze CloudWatch metrics and X-Ray traces
+    - Optimize memory allocation and timeout settings
+    - Implement connection pooling for DynamoDB
+    - _Requirements: 12.2_
+  
+  - [ ] 21.3 Test mobile dashboard on low-end devices
+    - Test on Android 6.0 with 1GB RAM on 2G network
+    - Verify <3s load time and smooth operation
+    - Monitor battery and data usage
+    - _Requirements: 8.1, 8.3_
+
+- [ ] 22. Final checkpoint - Complete system validation
+  - Ensure all tests pass, ask the user if questions arise.
+  - Verify all 42 correctness properties are validated
+  - Confirm all 14 requirements are addressed
+  - Review cost projections and security compliance
 
 ## Notes
 
-- Tasks marked with `*` are optional and can be skipped for faster MVP development
+- All testing tasks are required for comprehensive validation
 - Each task references specific requirements for traceability
-- Property tests validate universal correctness properties across all inputs
-- Unit tests validate specific examples, edge cases, and integration points
-- The implementation uses Python with AWS serverless architecture for scalability and cost-effectiveness
-- Checkpoints ensure incremental validation and provide opportunities for user feedback
+- Checkpoints ensure incremental validation at major milestones
+- Property tests validate universal correctness properties with minimum 100 iterations
+- Unit tests validate specific examples, edge cases, and error conditions
+- Integration tests validate end-to-end flows across multiple components
+- The implementation follows an incremental approach: core functionality first, then intelligence layers, then dashboards
